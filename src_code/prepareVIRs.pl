@@ -26,6 +26,7 @@ my $PATH           = $opt_p || &Parent(${wDir}) . "${SLASH}src_data";
 my $EXT            = $opt_e || "text";
 my $DEBUG          = $opt_d || 0;
 if ($opt_h) {&Usage; exit 0;}
+my %MASTER;
 my @DATA_FILES = &selectSrcData($PATH,$EXT);
 if (scalar(@DATA_FILES) > 0) {
     for (my $dfi=0;$dfi<scalar(@DATA_FILES);$dfi++) {
@@ -41,6 +42,32 @@ if (scalar(@DATA_FILES) > 0) {
             # }
             for (my $dxi=1;$dxi<scalar(@DATA);$dxi++) {
                 my %ROW = &hashDATA($DATA[0],$DATA[$dxi]);
+                $ROW{"FILE"}=&File($dfile);
+                my $vid = $ROW{"vehicle_id"};
+                if (!exists($MASTER{$vid})) {$MASTER{$vid}="";}
+                if ($MASTER{$vid} eq "") {
+                    $MASTER{$vid} = \%ROW;
+                } else {
+                    print "  ERROR: Vehicle_Id[$vid] Already Exists!\n";
+                    my %PREDATA = %{$MASTER{$vid}};
+                    printf "  %-45s %-45s %-45s %-10s\n","COLUMN","PRE_DATA","CUR_DATA","COMPARE";
+                    foreach my $pkey(sort keys %PREDATA) {
+                        my $pval = $PREDATA{$pkey};
+                        my $cval = $ROW{$pkey};
+                        my $cmp="UNK";
+                        if ($pval eq $cval) {
+                            $cmp="SAME";
+                        } else {
+                            $cmp="DIFF";
+                        }
+                        printf "  %-45s %-45s %-45s %-10s\n",$pkey,$pval,$cval,$cmp;
+                    }
+                    <STDIN>;
+                }
+                print "VID:$vid\n";
+                my $idt = $ROW{"inspection_date"};
+                my $vog = $ROW{"vehicle_org_id"};
+
                 foreach my $rowkey(sort keys %ROW) {
                     my $rowval = $ROW{$rowkey};
                     printf "  ROW:%0.2d COL:%-45s == %-s\n",$dxi,$rowkey,$rowval;
@@ -54,6 +81,19 @@ if (scalar(@DATA_FILES) > 0) {
     }
 } else {
     print "  No Data Files to process!\n";
+}
+if (scalar(keys %MASTER) > 0) {
+    foreach my $key(sort keys %MASTER) {
+        printf "  Vehicle_ID:%-s\n",$key;
+        my %vals = %{$MASTER{$key}};
+        foreach my $vkey(sort keys %vals) {
+            my $val = $vals{$vkey};
+            printf "  --%-41s == %-s\n",$vkey,$val;
+        }
+        
+    }
+} else {
+    print "  MASTER HASH IS EMPTY!\n";
 }
 sub selectSrcData {
     my $path = shift || "";
