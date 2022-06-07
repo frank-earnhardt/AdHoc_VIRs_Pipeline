@@ -1,3 +1,5 @@
+use strict;
+use warnings;
 use Getopt::Std;
 use Cwd;
 use Encode;
@@ -19,15 +21,18 @@ sub Usage {
     print "           -h              ~ Shows Usage\n";
 }
 my $base=$0;
-print "${wDir}${SLASH}${base}\n";
-getopts('m:p:e:d:h');
+print "Base:$base\n";
+
+use vars qw($opt_m $opt_p $opt_e $opt_f $opt_d $opt_h);
+getopts('m:p:e:f:d:h');
 my $MODE           = $opt_m || "";
-my $PATH           = $opt_p || &Parent(${wDir}) . "${SLASH}src_data";
-my $EXT            = $opt_e || "text";
+my $PATH           = $opt_p || "${wDir}${SLASH}src_data";
+my $FILTER         = $opt_f || "/vir";
+my $EXT            = $opt_e || "csv";
 my $DEBUG          = $opt_d || 0;
 if ($opt_h) {&Usage; exit 0;}
 my %MASTER;
-my @DATA_FILES = &selectSrcData($PATH,$EXT);
+my @DATA_FILES = &selectSrcData($PATH,$EXT,$FILTER);
 if (scalar(@DATA_FILES) > 0) {
     for (my $dfi=0;$dfi<scalar(@DATA_FILES);$dfi++) {
         my $dfile = $DATA_FILES[$dfi];
@@ -258,13 +263,19 @@ if (scalar(keys %MVP_RPT) > 0) {
 sub selectSrcData {
     my $path = shift || "";
     my $fext = shift || "";
+    my $filter = shift || "";
     if (! -d $path) {
-        print "  selectData($path,$ext) ERROR: Invalid Path: $path\n";
+        print "  selectData($path,$fext,$filter) ERROR: Invalid Path: $path\n";
         return;
     }
-    my $cmd="find ${path} -exec file {} \\;";
-    if ($EXT ne "") {$cmd .= " | grep ${EXT}";}
-    $cmd .= " | sort -n";
+    print "  selectSrcData($path,$fext)\n" if $DEBUG > 0;
+    my $cmd="/usr/bin/find ${path} -exec file {} \\;";
+    $cmd ="/usr/bin/find ${path} -type f | perl -nle 'print if -f && -T'";
+    $cmd="/usr/bin/find ${path} -type f";
+
+    if ($fext ne "") {$cmd .= " | /bin/grep ${fext}";}
+    if ($filter ne "") {$cmd .= " | /bin/grep ${filter}";}
+    $cmd .= " | /usr/bin/sort -n";
     print "$cmd\n" if $DEBUG > 0;
     my $cmdX=`$cmd`;
     chomp($cmdX);
@@ -572,4 +583,7 @@ sub getSLASH {
        $SLASH = "/";
    }
    return $SLASH;
+}
+sub _EXIT_CLEAN {
+    exit 0;
 }
