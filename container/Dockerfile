@@ -3,11 +3,12 @@ LABEL maintainer="Frank Earnhardt <frank.earnhardt@outlook.com>"
 
 RUN apt-get update \
     && apt-get upgrade -y \
-       perl
+       perl \
+       curl
 
 WORKDIR /opt
 
-FROM base AS build
+FROM base AS core
 RUN apt-get update \
     && apt-get install -yq \
        build-essential \
@@ -15,9 +16,15 @@ RUN apt-get update \
        iputils-ping \
        apt-utils
 
+FROM core AS build
+RUN apt-get update \
+    && apt-get install -y \
+    curl
+CMD /bin/bash
+
 RUN cpanm Data::Dumper
 
-FROM base AS run
+FROM build AS run
 
 COPY --from=build /usr/local /usr/local
 

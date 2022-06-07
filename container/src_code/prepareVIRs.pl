@@ -22,7 +22,6 @@ sub Usage {
 }
 my $base=$0;
 print "Base:$base\n";
-
 use vars qw($opt_m $opt_p $opt_e $opt_f $opt_d $opt_h);
 getopts('m:p:e:f:d:h');
 my $MODE           = $opt_m || "";
@@ -269,13 +268,20 @@ sub selectSrcData {
         return;
     }
     print "  selectSrcData($path,$fext)\n" if $DEBUG > 0;
-    my $cmd="/usr/bin/find ${path} -exec file {} \\;";
-    $cmd ="/usr/bin/find ${path} -type f | perl -nle 'print if -f && -T'";
-    $cmd="/usr/bin/find ${path} -type f";
+    my $cmd="";
+    if ($^O =~ /Win/) {
+        $cmd="dir /a:-d /b \"${path}\"";
+        if ($fext ne "") {$cmd .= " | findstr /C:\"${fext}\"";}
+        if ($fext ne "") {$cmd .= " | findstr /C:\"${filter}\"";}
+    } else {
+        $cmd="/usr/bin/find ${path} -exec file {} \\;";
+        $cmd ="/usr/bin/find ${path} -type f | perl -nle 'print if -f && -T'";
+        $cmd="/usr/bin/find ${path} -type f";
 
-    if ($fext ne "") {$cmd .= " | /bin/grep ${fext}";}
-    if ($filter ne "") {$cmd .= " | /bin/grep ${filter}";}
-    $cmd .= " | /usr/bin/sort -n";
+        if ($fext ne "") {$cmd .= " | /bin/grep ${fext}";}
+        if ($filter ne "") {$cmd .= " | /bin/grep ${filter}";}
+        $cmd .= " | /usr/bin/sort -n";
+    }
     print "$cmd\n" if $DEBUG > 0;
     my $cmdX=`$cmd`;
     chomp($cmdX);
