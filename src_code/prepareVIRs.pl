@@ -34,20 +34,16 @@ if (scalar(@DATA_FILES) > 0) {
         printf "  %0.2d == %-s\n",$dfi,$DATA_FILES[$dfi];
         my @DATA = &loadFile($dfile,"\\|","Y","vehicle_id","#");
         if (scalar(@DATA) > 0) {
-            # my $header=$DATA[0];
-            # print "  head:$header\n";
-            # my @FH=&splitData($header);
-            # for (my $xi=0;$xi<scalar(@FH);$xi++) {
-            #     printf "  %0.2d == %-s\n",$xi,$FH[$xi];
-            # }
             for (my $dxi=1;$dxi<scalar(@DATA);$dxi++) {
                 my %ROW = &hashDATA($DATA[0],$DATA[$dxi]);
                 $ROW{"FILE"}=&File($dfile);
+                #my $vid = $ROW{"vehicle_id"} . "!" . $ROW{"inspection_date"};
                 my $vid = $ROW{"vehicle_id"};
                 if (!exists($MASTER{$vid})) {$MASTER{$vid}="";}
                 if ($MASTER{$vid} eq "") {
                     $MASTER{$vid} = \%ROW;
                 } else {
+                    my $cFlag=0;
                     print "  ERROR: Vehicle_Id[$vid] Already Exists!\n";
                     my %PREDATA = %{$MASTER{$vid}};
                     printf "  %-45s %-45s %-45s %-10s\n","COLUMN","PRE_DATA","CUR_DATA","COMPARE";
@@ -59,10 +55,22 @@ if (scalar(@DATA_FILES) > 0) {
                             $cmp="SAME";
                         } else {
                             $cmp="DIFF";
+                            if ($pkey ne "FILE" || $pkey ne "LOG" ) {
+                                $cFlag++;
+                                if (!exists($ROW{"LOG"})) {$ROW{"LOG"}="";}
+                                if ($ROW{"LOG"} eq "") {
+                                    $ROW{"LOG"} = "${pkey}|${pval}|${cval}|" . $ROW{"FILE"};
+                                } else {
+                                    $ROW{"LOG"} .= "!-!${pkey}|${pval}|${cval}|" . $ROW{"FILE"};
+                                }
+                            }
                         }
                         printf "  %-45s %-45s %-45s %-10s\n",$pkey,$pval,$cval,$cmp;
                     }
-                    <STDIN>;
+                    $MASTER{$vid} = \%ROW;
+                    if (uc($MODE) !~ /CRON/) {
+                        <STDIN> if $cFlag > 0;
+                    }
                 }
                 print "VID:$vid\n";
                 my $idt = $ROW{"inspection_date"};
@@ -72,28 +80,113 @@ if (scalar(@DATA_FILES) > 0) {
                     my $rowval = $ROW{$rowkey};
                     printf "  ROW:%0.2d COL:%-45s == %-s\n",$dxi,$rowkey,$rowval;
                 }
-                # for (my $xyi=0;$xyi<scalar(@FH);$xyi++) {
-                #     printf " FUCK-YOU: %0.4d:%0.2d == %-50s %-s\n",$dxi,$xyi,$FH[$xyi],$R[$xyi];
-                # }
             }
-            <STDIN>;
+            <STDIN> if $DEBUG > 0;
         }
     }
 } else {
     print "  No Data Files to process!\n";
 }
+#################################
+## BEGIN BUSINESS LOGIC
+#################################
+# 1. MVP Report TSV org_name\ttot_v\tfailed_v
+my %MVP_RPT;
+my %ORG_REF;
 if (scalar(keys %MASTER) > 0) {
     foreach my $key(sort keys %MASTER) {
         printf "  Vehicle_ID:%-s\n",$key;
         my %vals = %{$MASTER{$key}};
-        foreach my $vkey(sort keys %vals) {
-            my $val = $vals{$vkey};
-            printf "  --%-41s == %-s\n",$vkey,$val;
+        ###############################
+        # 1. Begin MVP
+        my $mvp_key = $vals{"vehicle_org_id"};
+        if (!exists($ORG_REF{$mvp_key})) {$ORG_REF{$mvp_key}="";}
+        if ($ORG_REF{$mvp_key} eq "") {
+            $ORG_REF{$mvp_key}=$vals{"org_name"};
+        } else {
+            print "  WARNING: DUPLICATE ORG_NAMES\n";
+        }
+        print "  MVP_KEY:$mvp_key\n";
+        my $mvp_val = $vals{"inspection_passed"};
+        print "  MVP_VAL:$mvp_val\n";
+        if (!exists($MVP_RPT{$mvp_key}->{"VLIST"})) {$MVP_RPT{$mvp_key}->{"VLIST"}="";}
+        if ($MVP_RPT{$mvp_key}->{"VLIST"} eq "") {
+            $MVP_RPT{$mvp_key}->{"VLIST"}=$key;
+        } else {
+            $MVP_RPT{$mvp_key}->{"VLIST"}.="," . $key;
+        }
+        if (!exists($MVP_RPT{$mvp_key}->{"total_v"})) {$MVP_RPT{$mvp_key}->{"total_v"}=0;}
+        if ($MVP_RPT{$mvp_key}->{"total_v"} == 0) {
+            $MVP_RPT{$mvp_key}->{"total_v"}=1;
+        } else {
+            $MVP_RPT{$mvp_key}->{"total_v"}=$MVP_RPT{$mvp_key}->{"total_v"} + 1;
         }
         
+        if (!exists($MVP_RPT{$mvp_key}->{"FLIST"})) {$MVP_RPT{$mvp_key}->{"FLIST"}="";}
+        if ($mvp_val ne "TRUE") {
+            if ($MVP_RPT{$mvp_key}->{"FLIST"} eq "") {
+                print "  SET:FLIST=$key\n";
+                $MVP_RPT{$mvp_key}->{"FLIST"}=$key;
+            } else {
+                print "  APPEND:FLIST:$key\n";
+                $MVP_RPT{$mvp_key}->{"FLIST"}.="," . $key;
+            }
+        }
+        if (!exists($MVP_RPT{$mvp_key}->{"failed_v"})) {$MVP_RPT{$mvp_key}->{"failed_v"}=0;}
+        if ($mvp_val ne "TRUE") {
+            if ($MVP_RPT{$mvp_key}->{"failed_v"} == 0) {
+                print "  SET:FAILED=1\n";
+                $MVP_RPT{$mvp_key}->{"failed_v"}=1;
+            } else {
+                print "  APPEND:FAILED=+1\n";
+                $MVP_RPT{$mvp_key}->{"failed_v"}=$MVP_RPT{$mvp_key}->{"failed_v"} + 1;
+            }
+        }
+        # 1. End MVP
+        #######################################
+        foreach my $vkey(sort keys %vals) {
+            my $val = $vals{$vkey};
+            next if ($vkey eq "LOG");
+            printf "  --%-41s == %-s\n",$vkey,$val;
+        }
+        if (exists($vals{"LOG"})) {
+            my @LOGS = split('!-!',$vals{"LOG"});
+            if (scalar(@LOGS) > 0) {
+                for (my $li=0;$li<scalar(@LOGS);$li++) {
+                    my ($attr,$was,$now,$file) = split('\|',$LOGS[$li]);
+                    printf "  %0.2d == COL:${attr} changed FROM:${was} TO:${now} BY:${file}\n",$li;
+                }
+            }
+        }
     }
 } else {
     print "  MASTER HASH IS EMPTY!\n";
+}
+#############
+# MVP REPORT
+if (scalar(keys %MVP_RPT) > 0) {
+    my $mvpRpt = "${PATH}${SLASH}virs_report\.tsv";
+    open(FH,"> $mvpRpt") || die "Unable to open $mvpRpt";
+    print "******************************************\n";
+    print "** MVP REPORT - org_name  total  failed **\n";
+    print "******************************************\n";
+    print FH "org_name\ttot_v\tfailed_v\n";
+    printf "  %10s %-20s %7s %8s\n","org_id","org_name","total_v","failed_v";
+    printf "  %10s %-20s %7s %8s\n","----------","--------------------","-------","--------";
+    foreach my $mvp_key(sort keys %MVP_RPT) {
+        my $mvp_tot_v = $MVP_RPT{$mvp_key}->{"total_v"};
+        my $mvp_failed_v = $MVP_RPT{$mvp_key}->{"failed_v"};
+        printf "  %10s %-20s %7s %8s\n",$mvp_key,$ORG_REF{$mvp_key},$mvp_tot_v,$mvp_failed_v;
+        print "  -V-" . $MVP_RPT{$mvp_key}->{"VLIST"} . "\n";
+        if (exists($MVP_RPT{$mvp_key}->{"FLIST"})) {
+            print "  -F-" . $MVP_RPT{$mvp_key}->{"FLIST"} . "\n";
+        }
+        print FH "$ORG_REF{$mvp_key}\t${mvp_tot_v}\t${mvp_failed_v}\n";
+    }
+    close(FH);
+    if (-f $mvpRpt) {
+        print "  --See: $mvpRpt\n";
+    }
 }
 sub selectSrcData {
     my $path = shift || "";
@@ -104,7 +197,7 @@ sub selectSrcData {
     }
     my $cmd="find ${path} -exec file {} \\;";
     if ($EXT ne "") {$cmd .= " | grep ${EXT}";}
-    
+    $cmd .= " | sort -n";
     print "$cmd\n" if $DEBUG > 0;
     my $cmdX=`$cmd`;
     chomp($cmdX);
