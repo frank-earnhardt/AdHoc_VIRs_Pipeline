@@ -48,18 +48,26 @@ if (scalar(@DATA_FILES) > 0) {
                     $MASTER{$vid} = \%ROW;
                 } else {
                     my $cFlag=0;
-                    print "  ERROR: Vehicle_Id[$vid] Already Exists!\n";
+                    print "  **********************\n";
+                    print "  **  VEHICLE REVIEW  **  --Vehicle_Id:$vid\n";
+                    print "  **********************\n";
                     my %PREDATA = %{$MASTER{$vid}};
-                    printf "  %-45s %-45s %-45s %-10s\n","COLUMN","PRE_DATA","CUR_DATA","COMPARE";
+                    printf "  %-45s %-45s %-45s %-7s\n","COLUMN","PRE_DATA","CUR_DATA","COMPARE";
+                    printf "  %-45s %-45s %-45s %-7s\n","---------------------------------------------","---------------------------------------------","---------------------------------------------","-------";
+                    use vars qw($pval $cval);
                     foreach my $pkey(sort keys %PREDATA) {
+                        if (!exists($PREDATA{$pkey})){$PREDATA{$pkey}="";}
                         my $pval = $PREDATA{$pkey};
+                        if (!exists($ROW{$pkey})) {$ROW{$pkey}="";}
                         my $cval = $ROW{$pkey};
-                        my $cmp="UNK";
-                        if ($pval eq $cval) {
-                            $cmp="SAME";
-                        } else {
-                            $cmp="DIFF";
-                            if ($pkey ne "FILE" || $pkey ne "LOG" ) {
+                        my $cmp="UNKN";
+                        if ($pkey ne "FILE" && $pkey ne "LOG" ) {
+                            if (! defined $pval){$pval="";}
+                            if (! defined $cval){$cval="";}
+                            if ("${pval}" eq "${cval}") {
+                                $cmp="SAME";
+                            } else {
+                                $cmp="DIFF";
                                 $cFlag++;
                                 if (!exists($ROW{"LOG"})) {$ROW{"LOG"}="";}
                                 if ($ROW{"LOG"} eq "") {
@@ -68,12 +76,20 @@ if (scalar(@DATA_FILES) > 0) {
                                     $ROW{"LOG"} .= "!-!${pkey}|${pval}|${cval}|" . $ROW{"FILE"};
                                 }
                             }
+                        } else {
+                            if ($pkey eq "FILE"){$cmp="-NA-";}
+                            if ($pkey eq "LOG"){$cmp="-NA-";}
                         }
-                        printf "  %-45s %-45s %-45s %-10s\n",$pkey,$pval,$cval,$cmp;
+                        if ($pkey ne "LOG") {
+                            printf "  %-45s %-45s %-45s %-7s\n",$pkey,$pval,$cval,$cmp;
+                        }
                     }
                     $MASTER{$vid} = \%ROW;
                     if (uc($MODE) !~ /CRON/) {
-                        <STDIN> if $cFlag > 0;
+                        if ($cFlag > 0) {
+                            print "  ** Change Flag Set ** :${cFlag}\n";
+                            <STDIN>;
+                        }
                     }
                 }
                 print "VID:$vid\n";
@@ -81,6 +97,7 @@ if (scalar(@DATA_FILES) > 0) {
                 my $vog = $ROW{"vehicle_org_id"};
 
                 foreach my $rowkey(sort keys %ROW) {
+                    if (!exists($ROW{$rowkey})) {$ROW{$rowkey}="";}
                     my $rowval = $ROW{$rowkey};
                     printf "  ROW:%0.2d COL:%-45s == %-s\n",$dxi,$rowkey,$rowval;
                 }
@@ -112,6 +129,7 @@ if (scalar(keys %MASTER) > 0) {
         }
         print "  MVP_KEY:$mvp_key\n";
         my $mvp_val = $vals{"inspection_passed"};
+        if (! defined $mvp_val) {$mvp_val="";}
         print "  MVP_VAL:$mvp_val\n";
         if (!exists($MVP_RPT{$mvp_key}->{"VLIST"})) {$MVP_RPT{$mvp_key}->{"VLIST"}="";}
         if ($MVP_RPT{$mvp_key}->{"VLIST"} eq "") {
@@ -150,6 +168,7 @@ if (scalar(keys %MASTER) > 0) {
         #######################################
         foreach my $vkey(sort keys %vals) {
             my $val = $vals{$vkey};
+            if (! defined $val) {$val="";}
             next if ($vkey eq "LOG");
             printf "  --%-41s == %-s\n",$vkey,$val;
         }
@@ -232,9 +251,6 @@ if (scalar(keys %MVP_RPT) > 0) {
     my $pct = $failed_sum / $total_sum;
     printf "  %10s %-20s %7s %8s %.8f\n","","",$total_sum,$failed_sum,$pct;
     close(FH);
-    if (-f $mvpRpt) {
-        print "  --See: $mvpRpt\n";
-    }
     if (scalar(keys %DATES) > 0) {
         my $ptotal=0;
         my $ftotal=0;
@@ -257,6 +273,10 @@ if (scalar(keys %MVP_RPT) > 0) {
         my $pct_t = $ftotal / $ptotal;
         printf "  %-15s %4s %4s %8s\n","","----","----","--------";
         printf "  %-15s %0.4d %0.4d %0.6f\n","TOTALS",$ptotal,$ftotal,$pct_t;
+    }
+    if (-f $mvpRpt) {
+        print "\n";
+        print "  --See: $mvpRpt\n";
     }
 }
 sub selectSrcData {
@@ -313,20 +333,21 @@ sub hashDATA {
     my @T = split('|',$data);
     for (my $ti=0;$ti<scalar(@T);$ti++) {
         my $tval = ord($T[$ti]);
-        printf "  %0.2d == %-s\n",$ti,$tval;
+        printf "  %0.2d == %-s\n",$ti,$tval if $DEBUG > 1;
     }
     my @H = split('\|',$head);
-    print "[", join(":", @H), "]\n";
+    print "[", join(":", @H), "]\n" if $DEBUG > 1;
     my $hcnt = scalar(@H);
     my @D = split('\|',$data);
-    print "[" . join(":", @D), "]\n";
+    print "[" . join(":", @D), "]\n" if $DEBUG > 1;
     my $dcnt = scalar(@D);
-    print "HEAD[${hcnt}]:$head\n";
-    print "DATA[${dcnt}]:$data\n";
+    print "HEAD[${hcnt}]:$head\n" if $DEBUG > 1;
+    print "DATA[${dcnt}]:$data\n" if $DEBUG > 1;
     my %HASH_DATA = map { $H[$_] => $D[$_] } (0..@H - 1 => 0..@D - 1);
     foreach my $key(sort keys %HASH_DATA) {
+        if (!exists($HASH_DATA{$key})){$HASH_DATA{$key}="";}
         my $val = $HASH_DATA{$key};
-        printf "  %-45s == %-s\n",$key,$val;
+        printf "  %-45s == %-s\n",$key,$val if $DEBUG > 1;
     }
     $|=0;
     return %HASH_DATA;
@@ -353,13 +374,13 @@ sub loadFile {
         $/ = "\cA";
         my $data_slurp = do { local $/; <FH> };
         close(FH);
-        print "*******${data_slurp}************\n";
+        print "*******${data_slurp}************\n" if $DEBUG > 1;
         $/ = "\n";
         if ($data_slurp =~ /<?xml[^>]+encoding[\s\x0d\x0a]*=[\s\x0d\x0a]*['"]utf-?8/i || $file =~ /<meta[^>]+chatset[\s\x0d\x0a]*=[\s\x0d\x0a]*utf-?8/i) {
             $data_slurp = decode('utf-8', $data_slurp);
         }
         $data_slurp =~ s/(.)/asciiize($1)/eg;
-        print "*******${data_slurp}************\n";
+        print "*******${data_slurp}************\n" if $DEBUG > 1;
         my @RTN = split('\r\n',$data_slurp);
         return @RTN;
     } else {
@@ -450,7 +471,7 @@ sub loadFile2 {
                     printf "  HEAD: %0.4d:%0.2d %-s\n",$rowCnt,$hi,$head;
                     printf "  LINE: %0.4d:%0.2d %-s\n",$rowCnt,$hi,$line;
                     &pullROWS($file,$rowCnt,$rowCnt);
-                    <STDIN>;
+                    <STDIN> if $DEBUG > 0;
                 }
                 printf "  FROW: %0.4d:%0.2d COL:%-30s == %-s\n",$rowCnt,$hi,$hcol,$hval;
             }
