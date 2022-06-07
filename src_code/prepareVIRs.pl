@@ -165,27 +165,94 @@ if (scalar(keys %MASTER) > 0) {
 #############
 # MVP REPORT
 if (scalar(keys %MVP_RPT) > 0) {
+    my %DATES;
     my $mvpRpt = "${PATH}${SLASH}virs_report\.tsv";
     open(FH,"> $mvpRpt") || die "Unable to open $mvpRpt";
     print "******************************************\n";
     print "** MVP REPORT - org_name  total  failed **\n";
     print "******************************************\n";
     print FH "org_name\ttot_v\tfailed_v\n";
-    printf "  %10s %-20s %7s %8s\n","org_id","org_name","total_v","failed_v";
-    printf "  %10s %-20s %7s %8s\n","----------","--------------------","-------","--------";
+    printf "  %10s %-20s %7s %8s %10s\n","org_id","org_name","total_v","failed_v","pct_failed";
+    printf "  %10s %-20s %7s %8s %10s\n","----------","--------------------","-------","--------","----------";
+    my $total_sum=0;
+    my $failed_sum=0;
+    my $passed_sum=0;
+    my $pct_sum=0;
     foreach my $mvp_key(sort keys %MVP_RPT) {
         my $mvp_tot_v = $MVP_RPT{$mvp_key}->{"total_v"};
+        $total_sum = $total_sum + $mvp_tot_v;
         my $mvp_failed_v = $MVP_RPT{$mvp_key}->{"failed_v"};
-        printf "  %10s %-20s %7s %8s\n",$mvp_key,$ORG_REF{$mvp_key},$mvp_tot_v,$mvp_failed_v;
+        $failed_sum = $failed_sum + $mvp_failed_v;
+        my $pct_v = $mvp_failed_v / $mvp_tot_v;
+        $pct_sum = $pct_sum + $pct_v;
+        printf "  %10s %-20s %7s %8s %.8f\n",$mvp_key,$ORG_REF{$mvp_key},$mvp_tot_v,$mvp_failed_v,$pct_v;
         print "  -V-" . $MVP_RPT{$mvp_key}->{"VLIST"} . "\n";
+        if (exists($MVP_RPT{$mvp_key}->{"VLIST"})) {
+            if ($MVP_RPT{$mvp_key}->{"VLIST"} ne "") {
+                my @VLIST = split(',',$MVP_RPT{$mvp_key}->{"VLIST"});
+                if (scalar(@VLIST) > 0) {
+                    for (my $vi=0;$vi<scalar(@VLIST);$vi++) {
+                        my %vals = %{$MASTER{$VLIST[$vi]}};
+                        my $passed_dt = $vals{"inspection_date"};
+                        if (!exists($DATES{$passed_dt}->{"PASSED"})) {$DATES{$passed_dt}->{"PASSED"}= 0;}
+                        if ($DATES{$passed_dt}->{"PASSED"} == 0) {
+                            $DATES{$passed_dt}->{"PASSED"}=1;
+                        } else {
+                            $DATES{$passed_dt}->{"PASSED"}=$DATES{$passed_dt}->{"PASSED"} + 1;
+                        }
+                    }
+                }
+            }
+        }
         if (exists($MVP_RPT{$mvp_key}->{"FLIST"})) {
             print "  -F-" . $MVP_RPT{$mvp_key}->{"FLIST"} . "\n";
+            if ($MVP_RPT{$mvp_key}->{"FLIST"} ne "") {
+                my @FLIST = split(',',$MVP_RPT{$mvp_key}->{"FLIST"});
+                if (scalar(@FLIST) > 0) {
+                    for (my $fi=0;$fi<scalar(@FLIST);$fi++) {
+                        my %vals = %{$MASTER{$FLIST[$fi]}};
+                        my $failed_dt = $vals{"inspection_date"};
+                        if (!exists($DATES{$failed_dt}->{"FAILED"})) {$DATES{$failed_dt}->{"FAILED"}= 0;}
+                        if ($DATES{$failed_dt}->{"FAILED"} == 0) {
+                            $DATES{$failed_dt}->{"FAILED"}=1;
+                        } else {
+                            $DATES{$failed_dt}->{"FAILED"}=$DATES{$failed_dt}->{"FAILED"} + 1;
+                        }
+                    }
+                }
+            }
         }
         print FH "$ORG_REF{$mvp_key}\t${mvp_tot_v}\t${mvp_failed_v}\n";
     }
+    printf "  %10s %-20s %7s %8s %10s\n","","","=======","========","==========";
+    my $pct = $failed_sum / $total_sum;
+    printf "  %10s %-20s %7s %8s %.8f\n","","",$total_sum,$failed_sum,$pct;
     close(FH);
     if (-f $mvpRpt) {
         print "  --See: $mvpRpt\n";
+    }
+    if (scalar(keys %DATES) > 0) {
+        my $ptotal=0;
+        my $ftotal=0;
+        printf "  %-15s %4s %4s %8s\n","DATE","PASS","FAIL","FAIL PCT";
+        printf "  %-15s %4s %4s %8s\n","---------------","----","----","--------";
+        foreach my $pfkey(sort keys %DATES) {
+            my $pval = 0;
+            my $fval = 0;
+            if (exists($DATES{$pfkey}->{"PASSED"})) {
+                $pval = $DATES{$pfkey}->{"PASSED"};
+            }
+            if (exists($DATES{$pfkey}->{"FAILED"})) {
+                $fval = $DATES{$pfkey}->{"FAILED"};
+            }
+            my $f_pct = $fval / $pval;
+            $ptotal = $ptotal + $pval;
+            $ftotal = $ftotal + $fval;
+            printf "  %-15s %0.4d %0.4d %0.6f\n",$pfkey,$pval,$fval,$f_pct;
+        }
+        my $pct_t = $ftotal / $ptotal;
+        printf "  %-15s %4s %4s %8s\n","","----","----","--------";
+        printf "  %-15s %0.4d %0.4d %0.6f\n","TOTALS",$ptotal,$ftotal,$pct_t;
     }
 }
 sub selectSrcData {
