@@ -394,13 +394,13 @@ sub loadFile {
         $/ = "\cA";
         my $data_slurp = do { local $/; <FH> };
         close(FH);
-        print "*******${data_slurp}************\n" if $DEBUG > 1;
+        print "***START1***\n${data_slurp}\n***END1***\n" if $DEBUG > 1;
         $/ = "\n";
         if ($data_slurp =~ /<?xml[^>]+encoding[\s\x0d\x0a]*=[\s\x0d\x0a]*['"]utf-?8/i || $file =~ /<meta[^>]+chatset[\s\x0d\x0a]*=[\s\x0d\x0a]*utf-?8/i) {
             $data_slurp = decode('utf-8', $data_slurp);
         }
         $data_slurp =~ s/(.)/asciiize($1)/eg;
-        print "*******${data_slurp}************\n" if $DEBUG > 1;
+        print "***START2***\n${data_slurp}\n***END2***\n" if $DEBUG > 1;
         my @RTN = split('\r\n',$data_slurp);
         return @RTN;
     } else {
