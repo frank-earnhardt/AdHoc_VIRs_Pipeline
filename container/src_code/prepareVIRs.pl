@@ -382,6 +382,10 @@ sub splitData {
 sub loadFile {
     my $file = shift || "";
     print "$file\n" if $DEBUG > 0;
+    if (! -f $file) {
+        $file = "${wDir}${SLASH}${file}";
+        print "  --Trying file:$file\n";
+    }
     if (-f $file) {
         open(FH,"< $file")||die "Unable to open file: $file";
         $/ = "\cA";
