@@ -297,6 +297,7 @@ sub selectSrcData {
     }
     my $cmd="";
     if ($^O =~ /Win/) {
+        $path =~ s!\/!\\!g;
         $cmd="dir /a:-d /b \"${path}\"";
         if ($fext ne "") {$cmd .= " | findstr /C:\"${fext}\"";}
         if ($fext ne "") {$cmd .= " | findstr /C:\"${filter}\"";}
