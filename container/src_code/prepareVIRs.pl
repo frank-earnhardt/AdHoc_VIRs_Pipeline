@@ -10,6 +10,8 @@ my $wDir=cwd;
 if ($^O =~ /Win/) {
     $wDir =~ s!\/!\\!g;
 }
+my $conRoot=$wDir;
+$conRoot =~ s/container.*/container/;
 my $SLASH = &getSLASH();
 my $dt = sprintf "%0.4d_%0.2d_%0.2d",(localtime())[5]+1900,(localtime())[4] +1,(localtime())[3];
 my $tm = sprintf "%0.2d%0.2d%0.2d",(localtime())[2,1,0];
@@ -289,14 +291,12 @@ sub selectSrcData {
     my $filter = shift || "";
     print "  selectSrcData($path,$fext,$filter)\n" if $DEBUG > 0;
     if (! -d $path) {
-        my $conRoot = $wDir;
-        $conRoot =~ s/container.*/container\/src_data/;
-        print "  --Trying: $conRoot\n";
-        if (! -d $conRoot) {
-            print "  ERROR: Invalid Path: $conRoot\n";
+        $path = "${conRoot}${SLASH}src_data";
+        print "  --Trying: $path\n";
+        if (! -d $path) {
+            print "  ERROR: Invalid Path: $path\n";
             return;
         }
-        $path = $conRoot;
     }
     my $cmd="";
     if ($^O =~ /Win/) {
@@ -386,7 +386,7 @@ sub loadFile {
     my $file = shift || "";
     print "$file\n" if $DEBUG > 0;
     if (! -f $file) {
-        $file = "${wDir}${SLASH}${file}";
+        $file = "${conRoot}${SLASH}src_data${file}";
         print "  --Trying file:$file\n";
     }
     if (-f $file) {
