@@ -30,6 +30,7 @@ my $FILTER         = $opt_f || "/vir";
 my $EXT            = $opt_e || "csv";
 my $DEBUG          = $opt_d || 0;
 if ($opt_h) {&Usage; exit 0;}
+print "  Working Folder:$wDir\n" if $DEBUG > 0;
 my %MASTER;
 my @DATA_FILES = &selectSrcData($PATH,$EXT,$FILTER);
 if (scalar(@DATA_FILES) > 0) {
@@ -283,23 +284,32 @@ sub selectSrcData {
     my $path = shift || "";
     my $fext = shift || "";
     my $filter = shift || "";
+    print "  selectSrcData($path,$fext,$filter)\n" if $DEBUG > 0;
     if (! -d $path) {
-        print "  selectData($path,$fext,$filter) ERROR: Invalid Path: $path\n";
-        return;
+        $path = "${wDir}${SLASH}${path}";
+        print "  --Trying: $path\n";
+        if (! -d $path) {
+            print "  ERROR: Invalid Path: $path\n";
+            return;
+        }
     }
-    print "  selectSrcData($path,$fext)\n" if $DEBUG > 0;
     my $cmd="";
     if ($^O =~ /Win/) {
         $cmd="dir /a:-d /b \"${path}\"";
         if ($fext ne "") {$cmd .= " | findstr /C:\"${fext}\"";}
         if ($fext ne "") {$cmd .= " | findstr /C:\"${filter}\"";}
     } else {
+        my $grep = "/bin/grep";
+        if (! -f $grep) {$grep = "/usr/bin/grep";}
+        if (! -f $grep) {
+            die "  ERR: Unable to locate $grep!\n";
+        }
         $cmd="/usr/bin/find ${path} -exec file {} \\;";
         $cmd ="/usr/bin/find ${path} -type f | perl -nle 'print if -f && -T'";
         $cmd="/usr/bin/find ${path} -type f";
 
-        if ($fext ne "") {$cmd .= " | /bin/grep ${fext}";}
-        if ($filter ne "") {$cmd .= " | /bin/grep ${filter}";}
+        if ($fext ne "") {$cmd .= " | $grep ${fext}";}
+        if ($filter ne "") {$cmd .= " | $grep ${filter}";}
         $cmd .= " | /usr/bin/sort -n";
     }
     print "$cmd\n" if $DEBUG > 0;
