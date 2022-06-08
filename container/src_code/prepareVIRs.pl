@@ -7,6 +7,9 @@ use Encode;
 #use IO::All;
 #use Mac::AppleSingleDouble;
 my $wDir=cwd;
+if ($^O =~ /Win/) {
+    $wDir =~ s!\/!\\!g;
+}
 my $SLASH = &getSLASH();
 my $dt = sprintf "%0.4d_%0.2d_%0.2d",(localtime())[5]+1900,(localtime())[4] +1,(localtime())[3];
 my $tm = sprintf "%0.2d%0.2d%0.2d",(localtime())[2,1,0];
