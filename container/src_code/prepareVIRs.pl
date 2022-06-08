@@ -386,7 +386,7 @@ sub loadFile {
     my $file = shift || "";
     print "$file\n" if $DEBUG > 0;
     if (! -f $file) {
-        $file = "${conRoot}${SLASH}src_data${file}";
+        $file = "${conRoot}${SLASH}src_data${SLASH}${file}";
         print "  --Trying file:$file\n";
     }
     if (-f $file) {
