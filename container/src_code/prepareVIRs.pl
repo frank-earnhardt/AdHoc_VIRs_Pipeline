@@ -10,9 +10,10 @@ my $wDir=cwd;
 if ($^O =~ /Win/) {
     $wDir =~ s!\/!\\!g;
 }
-my $conRoot=$wDir;
-$conRoot =~ s/container.*/container/;
 my $SLASH = &getSLASH();
+my $srcData=$wDir;
+$srcData =~ s!container.*!container!;
+$srcData .="${SLASH}src_data";
 my $dt = sprintf "%0.4d_%0.2d_%0.2d",(localtime())[5]+1900,(localtime())[4] +1,(localtime())[3];
 my $tm = sprintf "%0.2d%0.2d%0.2d",(localtime())[2,1,0];
 my $now = sprintf "%0.2d/%0.2d/%0.4d %0.2d:%0.2d:%0.2d",(localtime())[4] +1,(localtime())[3],(localtime())[5]+1900,(localtime())[2,1,0];
@@ -30,7 +31,7 @@ print "Base:$base\n";
 use vars qw($opt_m $opt_p $opt_e $opt_f $opt_d $opt_h);
 getopts('m:p:e:f:d:h');
 my $MODE           = $opt_m || "";
-my $PATH           = $opt_p || "${wDir}${SLASH}src_data";
+my $PATH           = $opt_p || "${srcData}";
 my $FILTER         = $opt_f || "";
 my $EXT            = $opt_e || "csv";
 my $DEBUG          = $opt_d || 0;
@@ -291,12 +292,8 @@ sub selectSrcData {
     my $filter = shift || "";
     print "  selectSrcData($path,$fext,$filter)\n" if $DEBUG > 0;
     if (! -d $path) {
-        $path = "${conRoot}${SLASH}src_data";
-        print "  --Trying: $path\n";
-        if (! -d $path) {
-            print "  ERROR: Invalid Path: $path\n";
-            return;
-        }
+        print "  ERROR: Invalid Path: $path\n";
+        return;
     }
     my $cmd="";
     if ($^O =~ /Win/) {
@@ -310,9 +307,9 @@ sub selectSrcData {
         if (! -f $grep) {
             die "  ERR: Unable to locate $grep!\n";
         }
-        $cmd="/usr/bin/find ${path} -exec file {} \\;";
+        $cmd="/usr/bin/find ${path} -exec file {} \\; | $grep -v _vir_";
         $cmd ="/usr/bin/find ${path} -type f | perl -nle 'print if -f && -T'";
-        $cmd="/usr/bin/find ${path} -type f";
+        $cmd="/usr/bin/find ${path} -type f | $grep -v _vir_";
 
         if ($fext ne "") {$cmd .= " | $grep ${fext}";}
         if ($filter ne "") {$cmd .= " | $grep ${filter}";}
@@ -386,7 +383,7 @@ sub loadFile {
     my $file = shift || "";
     print "$file\n" if $DEBUG > 0;
     if (! -f $file) {
-        $file = "${conRoot}${SLASH}src_data${SLASH}${file}";
+        $file = "${srcData}${SLASH}${file}";
         print "  --Trying file:$file\n";
     }
     if (-f $file) {
