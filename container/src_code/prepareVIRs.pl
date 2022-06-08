@@ -26,7 +26,7 @@ use vars qw($opt_m $opt_p $opt_e $opt_f $opt_d $opt_h);
 getopts('m:p:e:f:d:h');
 my $MODE           = $opt_m || "";
 my $PATH           = $opt_p || "${wDir}${SLASH}src_data";
-my $FILTER         = $opt_f || "/vir";
+my $FILTER         = $opt_f || "";
 my $EXT            = $opt_e || "csv";
 my $DEBUG          = $opt_d || 0;
 if ($opt_h) {&Usage; exit 0;}
@@ -298,7 +298,7 @@ sub selectSrcData {
     my $cmd="";
     if ($^O =~ /Win/) {
         $path =~ s!\/!\\!g;
-        $cmd="dir /a:-d /b \"${path}\"";
+        $cmd="dir /a:-d /b \"${path}\"|findstr /V /C:\"_vir_\"";
         if ($fext ne "") {$cmd .= " | findstr /C:\"${fext}\"";}
         if ($fext ne "") {$cmd .= " | findstr /C:\"${filter}\"";}
     } else {
