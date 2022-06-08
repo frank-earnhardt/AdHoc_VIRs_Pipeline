@@ -283,7 +283,8 @@ if (scalar(keys %MVP_RPT) > 0) {
     }
     if (-f $mvpRpt) {
         print "\n";
-        print "  --See: .${SLASH}src_data${SLASH}virs_report\.tsv\n";
+        print "  "
+        print "  --See: $mvpRpt\n";
     }
 }
 sub selectSrcData {
