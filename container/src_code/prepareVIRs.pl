@@ -286,12 +286,14 @@ sub selectSrcData {
     my $filter = shift || "";
     print "  selectSrcData($path,$fext,$filter)\n" if $DEBUG > 0;
     if (! -d $path) {
-        $path = "${wDir}${SLASH}${path}";
-        print "  --Trying: $path\n";
-        if (! -d $path) {
-            print "  ERROR: Invalid Path: $path\n";
+        my $conRoot = $wDir;
+        $conRoot =~ s/container.*/container\/src_data/;
+        print "  --Trying: $conRoot\n";
+        if (! -d $conRoot) {
+            print "  ERROR: Invalid Path: $conRoot\n";
             return;
         }
+        $path = $conRoot;
     }
     my $cmd="";
     if ($^O =~ /Win/) {
