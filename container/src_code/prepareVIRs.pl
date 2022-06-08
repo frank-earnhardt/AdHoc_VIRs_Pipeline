@@ -283,8 +283,7 @@ if (scalar(keys %MVP_RPT) > 0) {
     }
     if (-f $mvpRpt) {
         print "\n";
-        print "  "
-        print "  --See: $mvpRpt\n";
+        print "  --See: $mvpRpt\n\n";
     }
 }
 sub selectSrcData {
