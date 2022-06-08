@@ -300,7 +300,7 @@ sub selectSrcData {
         $path =~ s!\/!\\!g;
         $cmd="dir /a:-d /b \"${path}\" | findstr /V /C:\"_vir_\"";
         if ($fext ne "") {$cmd .= " | findstr /C:\"${fext}\"";}
-        if ($fext ne "") {$cmd .= " | findstr /C:\"${filter}\"";}
+        if ($filter ne "") {$cmd .= " | findstr /C:\"${filter}\"";}
     } else {
         my $grep = "/bin/grep";
         if (! -f $grep) {$grep = "/usr/bin/grep";}
