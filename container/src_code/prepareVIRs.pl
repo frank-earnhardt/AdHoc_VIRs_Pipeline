@@ -402,6 +402,7 @@ sub loadFile {
         $data_slurp =~ s/(.)/asciiize($1)/eg;
         print "***START2***\n${data_slurp}\n***END2***\n" if $DEBUG > 1;
         my @RTN = split('\r\n',$data_slurp);
+        print "WTF:" . scalar(@RTN) . "\n";
         return @RTN;
     } else {
         print "  Could not locate file: $file\n";
