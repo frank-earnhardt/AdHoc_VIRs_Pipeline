@@ -19,21 +19,29 @@ my $tm = sprintf "%0.2d%0.2d%0.2d",(localtime())[2,1,0];
 my $now = sprintf "%0.2d/%0.2d/%0.4d %0.2d:%0.2d:%0.2d",(localtime())[4] +1,(localtime())[3],(localtime())[5]+1900,(localtime())[2,1,0];
 sub Usage {
     print "   USAGE\n";
-    print "        $0 -m<Mode> -d<debugInt> -h\n";
-    print "           -m<Mode>        ~ Mode Typical Nothing\n";
-    print "                             -- CRON ~ Skip Human Prompts\n";
-    print "                             -- SHOW ~ Skip Actual Execution\n";
-    print "           -d<debugInt>    ~ debugInt Indicator\n";
+    print "        $0 -m<Mode> -p<srcDataPath> -f<filter> -e<ext> -r<report> -d<debugInt> -h\n";
+    print "           -m              ~ default:cron\n";
+    print "                             -m cron ~ Skip Human Prompts\n";
+    print "           -p              ~ default: ${srcData}\n";
+    print "           -f              ~ default:none\n";
+    print "           -e              ~ default:csv\n";
+    print "           -r              ~ default:none\n";
+    print "                             -rDT  ~ Dates Report\n";
+    print "           -d              ~ default:0\n";
     print "           -h              ~ Shows Usage\n";
 }
 my $base=$0;
-print "Base:$base\n";
-use vars qw($opt_m $opt_p $opt_e $opt_f $opt_d $opt_h);
-getopts('m:p:e:f:d:h');
-my $MODE           = $opt_m || "";
+print "\n";
+print "  -----------------------------------------------------------\n";
+print "  Date:${dt} Time:${tm}\n";
+print "  Base:$base\n";
+use vars qw($opt_m $opt_p $opt_e $opt_f $opt_r $opt_d $opt_h);
+getopts('m:p:e:f:r:d:h');
+my $MODE           = $opt_m || "cron";
 my $PATH           = $opt_p || "${srcData}";
 my $FILTER         = $opt_f || "";
 my $EXT            = $opt_e || "csv";
+my $RPT            = $opt_r || "";
 my $DEBUG          = $opt_d || 0;
 if ($opt_h) {&Usage; exit 0;}
 print "  Working Folder:$wDir\n" if $DEBUG > 0;
@@ -42,7 +50,7 @@ my @DATA_FILES = &selectSrcData($PATH,$EXT,$FILTER);
 if (scalar(@DATA_FILES) > 0) {
     for (my $dfi=0;$dfi<scalar(@DATA_FILES);$dfi++) {
         my $dfile = $DATA_FILES[$dfi];
-        printf "  %0.2d == %-s\n",$dfi,$DATA_FILES[$dfi];
+        printf "  %0.2d == %-s\n",$dfi,$DATA_FILES[$dfi] if $DEBUG > 7;
         my @DATA = &loadFile($dfile,"\\|","Y","vehicle_id","#");
         if (scalar(@DATA) > 0) {
             for (my $dxi=1;$dxi<scalar(@DATA);$dxi++) {
@@ -55,12 +63,12 @@ if (scalar(@DATA_FILES) > 0) {
                     $MASTER{$vid} = \%ROW;
                 } else {
                     my $cFlag=0;
-                    print "  **********************\n";
-                    print "  **  VEHICLE REVIEW  **  --Vehicle_Id:$vid\n";
-                    print "  **********************\n";
+                    print "  **********************\n" if $DEBUG > 0;
+                    print "  **  VEHICLE REVIEW  **  --Vehicle_Id:$vid\n" if $DEBUG > 0;
+                    print "  **********************\n" if $DEBUG > 0;
                     my %PREDATA = %{$MASTER{$vid}};
-                    printf "  %-45s %-45s %-45s %-7s\n","COLUMN","PRE_DATA","CUR_DATA","COMPARE";
-                    printf "  %-45s %-45s %-45s %-7s\n","---------------------------------------------","---------------------------------------------","---------------------------------------------","-------";
+                    printf "  %-45s %-45s %-45s %-7s\n","COLUMN","PRE_DATA","CUR_DATA","COMPARE" if $DEBUG > 0;
+                    printf "  %-45s %-45s %-45s %-7s\n","---------------------------------------------","---------------------------------------------","---------------------------------------------","-------" if $DEBUG > 0;
                     use vars qw($pval $cval);
                     foreach my $pkey(sort keys %PREDATA) {
                         if (!exists($PREDATA{$pkey})){$PREDATA{$pkey}="";}
@@ -88,28 +96,28 @@ if (scalar(@DATA_FILES) > 0) {
                             if ($pkey eq "LOG"){$cmp="-NA-";}
                         }
                         if ($pkey ne "LOG") {
-                            printf "  %-45s %-45s %-45s %-7s\n",$pkey,$pval,$cval,$cmp;
+                            printf "  %-45s %-45s %-45s %-7s\n",$pkey,$pval,$cval,$cmp if $DEBUG > 0;
                         }
                     }
                     $MASTER{$vid} = \%ROW;
                     if (uc($MODE) !~ /CRON/) {
                         if ($cFlag > 0) {
-                            print "  ** Change Flag Set ** :${cFlag}\n";
+                            print "  ** Change Flag Set ** :${cFlag}\n" if $DEBUG > 0;
                             <STDIN>;
                         }
                     }
                 }
-                print "VID:$vid\n";
+                print "VID:$vid\n" if $DEBUG > 7;
                 my $idt = $ROW{"inspection_date"};
                 my $vog = $ROW{"vehicle_org_id"};
 
                 foreach my $rowkey(sort keys %ROW) {
                     if (!exists($ROW{$rowkey})) {$ROW{$rowkey}="";}
                     my $rowval = $ROW{$rowkey};
-                    printf "  ROW:%0.2d COL:%-45s == %-s\n",$dxi,$rowkey,$rowval;
+                    printf "  ROW:%0.2d COL:%-45s == %-s\n",$dxi,$rowkey,$rowval if $DEBUG > 7;
                 }
             }
-            <STDIN> if $DEBUG > 0;
+            <STDIN> if $DEBUG > 7;
         }
     }
 } else {
@@ -121,9 +129,10 @@ if (scalar(@DATA_FILES) > 0) {
 # 1. MVP Report TSV org_name\ttot_v\tfailed_v
 my %MVP_RPT;
 my %ORG_REF;
+my %DATES;
 if (scalar(keys %MASTER) > 0) {
     foreach my $key(sort keys %MASTER) {
-        printf "  Vehicle_ID:%-s\n",$key;
+        printf "  Vehicle_ID:%-s\n",$key if $DEBUG > 3;
         my %vals = %{$MASTER{$key}};
         ###############################
         # 1. Begin MVP
@@ -132,12 +141,12 @@ if (scalar(keys %MASTER) > 0) {
         if ($ORG_REF{$mvp_key} eq "") {
             $ORG_REF{$mvp_key}=$vals{"org_name"};
         } else {
-            print "  WARNING: DUPLICATE ORG_NAMES\n";
+            print "  WARNING: DUPLICATE ORG_NAMES\n" if $DEBUG > 6;
         }
-        print "  MVP_KEY:$mvp_key\n";
+        print "  MVP_KEY:$mvp_key\n" if $DEBUG > 6;
         my $mvp_val = $vals{"inspection_passed"};
         if (! defined $mvp_val) {$mvp_val="";}
-        print "  MVP_VAL:$mvp_val\n";
+        print "  MVP_VAL:$mvp_val\n" if $DEBUG > 6;
         if (!exists($MVP_RPT{$mvp_key}->{"VLIST"})) {$MVP_RPT{$mvp_key}->{"VLIST"}="";}
         if ($MVP_RPT{$mvp_key}->{"VLIST"} eq "") {
             $MVP_RPT{$mvp_key}->{"VLIST"}=$key;
@@ -154,20 +163,20 @@ if (scalar(keys %MASTER) > 0) {
         if (!exists($MVP_RPT{$mvp_key}->{"FLIST"})) {$MVP_RPT{$mvp_key}->{"FLIST"}="";}
         if ($mvp_val ne "TRUE") {
             if ($MVP_RPT{$mvp_key}->{"FLIST"} eq "") {
-                print "  SET:FLIST=$key\n";
+                print "  SET:FLIST=$key\n" if $DEBUG > 6;
                 $MVP_RPT{$mvp_key}->{"FLIST"}=$key;
             } else {
-                print "  APPEND:FLIST:$key\n";
+                print "  APPEND:FLIST:$key\n" if $DEBUG > 6;
                 $MVP_RPT{$mvp_key}->{"FLIST"}.="," . $key;
             }
         }
         if (!exists($MVP_RPT{$mvp_key}->{"failed_v"})) {$MVP_RPT{$mvp_key}->{"failed_v"}=0;}
         if ($mvp_val ne "TRUE") {
             if ($MVP_RPT{$mvp_key}->{"failed_v"} == 0) {
-                print "  SET:FAILED=1\n";
+                print "  SET:FAILED=1\n" if $DEBUG > 6;
                 $MVP_RPT{$mvp_key}->{"failed_v"}=1;
             } else {
-                print "  APPEND:FAILED=+1\n";
+                print "  APPEND:FAILED=+1\n" if $DEBUG > 6;
                 $MVP_RPT{$mvp_key}->{"failed_v"}=$MVP_RPT{$mvp_key}->{"failed_v"} + 1;
             }
         }
@@ -177,14 +186,14 @@ if (scalar(keys %MASTER) > 0) {
             my $val = $vals{$vkey};
             if (! defined $val) {$val="";}
             next if ($vkey eq "LOG");
-            printf "  --%-41s == %-s\n",$vkey,$val;
+            printf "  --%-41s == %-s\n",$vkey,$val if $DEBUG > 5;
         }
         if (exists($vals{"LOG"})) {
             my @LOGS = split('!-!',$vals{"LOG"});
             if (scalar(@LOGS) > 0) {
                 for (my $li=0;$li<scalar(@LOGS);$li++) {
                     my ($attr,$was,$now,$file) = split('\|',$LOGS[$li]);
-                    printf "  %0.2d == COL:${attr} changed FROM:${was} TO:${now} BY:${file}\n",$li;
+                    printf "  %0.2d == COL:${attr} changed FROM:${was} TO:${now} BY:${file}\n",$li if $DEBUG > 5;
                 }
             }
         }
@@ -192,72 +201,85 @@ if (scalar(keys %MASTER) > 0) {
 } else {
     print "  MASTER HASH IS EMPTY!\n";
 }
-#############
-# MVP REPORT
-if (scalar(keys %MVP_RPT) > 0) {
-    my %DATES;
-    my $mvpRpt = "${PATH}${SLASH}virs_report\.tsv";
-    open(FH,"> $mvpRpt") || die "Unable to open $mvpRpt";
-    print "******************************************\n";
-    print "** MVP REPORT - org_name  total  failed **\n";
-    print "******************************************\n";
-    print FH "org_name\ttot_v\tfailed_v\n";
-    printf "  %10s %-20s %7s %8s %10s\n","org_id","org_name","total_v","failed_v","pct_failed";
-    printf "  %10s %-20s %7s %8s %10s\n","----------","--------------------","-------","--------","----------";
-    my $total_sum=0;
-    my $failed_sum=0;
-    my $passed_sum=0;
-    my $pct_sum=0;
-    foreach my $mvp_key(sort keys %MVP_RPT) {
-        my $mvp_tot_v = $MVP_RPT{$mvp_key}->{"total_v"};
-        $total_sum = $total_sum + $mvp_tot_v;
-        my $mvp_failed_v = $MVP_RPT{$mvp_key}->{"failed_v"};
-        $failed_sum = $failed_sum + $mvp_failed_v;
-        my $pct_v = $mvp_failed_v / $mvp_tot_v;
-        $pct_sum = $pct_sum + $pct_v;
-        printf "  %10s %-20s %7s %8s %.8f\n",$mvp_key,$ORG_REF{$mvp_key},$mvp_tot_v,$mvp_failed_v,$pct_v;
-        print "  -V-" . $MVP_RPT{$mvp_key}->{"VLIST"} . "\n";
-        if (exists($MVP_RPT{$mvp_key}->{"VLIST"})) {
-            if ($MVP_RPT{$mvp_key}->{"VLIST"} ne "") {
-                my @VLIST = split(',',$MVP_RPT{$mvp_key}->{"VLIST"});
-                if (scalar(@VLIST) > 0) {
-                    for (my $vi=0;$vi<scalar(@VLIST);$vi++) {
-                        my %vals = %{$MASTER{$VLIST[$vi]}};
-                        my $passed_dt = $vals{"inspection_date"};
-                        if (!exists($DATES{$passed_dt}->{"PASSED"})) {$DATES{$passed_dt}->{"PASSED"}= 0;}
-                        if ($DATES{$passed_dt}->{"PASSED"} == 0) {
-                            $DATES{$passed_dt}->{"PASSED"}=1;
-                        } else {
-                            $DATES{$passed_dt}->{"PASSED"}=$DATES{$passed_dt}->{"PASSED"} + 1;
+if (uc($RPT) eq "all"){$RPT="MVPDT";}
+&report_MVP();
+if (uc($RPT) =~ /DT/) {
+    &report_DATES();
+}
+exit 0;
+sub report_MVP {
+    #############
+    # MVP REPORT
+    if (scalar(keys %MVP_RPT) > 0) {
+        my $mvpRpt = "${PATH}${SLASH}virs_report\.tsv";
+        open(FH,"> $mvpRpt") || die "Unable to open $mvpRpt";
+        print "  ***********************************************************\n";
+        print "  **                      MVP REPORT                       **\n";
+        print "  ***********************************************************\n";
+        print FH "org_name\ttot_v\tfailed_v\n";
+        printf "  %10s %-20s %7s %8s %10s\n","org_id","org_name","total_v","failed_v","pct_failed";
+        printf "  %10s %-20s %7s %8s %10s\n","----------","--------------------","-------","--------","----------";
+        my $total_sum=0;
+        my $failed_sum=0;
+        my $passed_sum=0;
+        my $pct_sum=0;
+        foreach my $mvp_key(sort keys %MVP_RPT) {
+            my $mvp_tot_v = $MVP_RPT{$mvp_key}->{"total_v"};
+            $total_sum = $total_sum + $mvp_tot_v;
+            my $mvp_failed_v = $MVP_RPT{$mvp_key}->{"failed_v"};
+            $failed_sum = $failed_sum + $mvp_failed_v;
+            my $pct_v = $mvp_failed_v / $mvp_tot_v;
+            $pct_sum = $pct_sum + $pct_v;
+            printf "  %10s %-20s %7s %8s %.8f\n",$mvp_key,$ORG_REF{$mvp_key},$mvp_tot_v,$mvp_failed_v,$pct_v;
+            print "  -V-" . $MVP_RPT{$mvp_key}->{"VLIST"} . "\n" if $DEBUG > 1;
+            if (exists($MVP_RPT{$mvp_key}->{"VLIST"})) {
+                if ($MVP_RPT{$mvp_key}->{"VLIST"} ne "") {
+                    my @VLIST = split(',',$MVP_RPT{$mvp_key}->{"VLIST"});
+                    if (scalar(@VLIST) > 0) {
+                        for (my $vi=0;$vi<scalar(@VLIST);$vi++) {
+                            my %vals = %{$MASTER{$VLIST[$vi]}};
+                            my $passed_dt = $vals{"inspection_date"};
+                            if (!exists($DATES{$passed_dt}->{"PASSED"})) {$DATES{$passed_dt}->{"PASSED"}= 0;}
+                            if ($DATES{$passed_dt}->{"PASSED"} == 0) {
+                                $DATES{$passed_dt}->{"PASSED"}=1;
+                            } else {
+                                $DATES{$passed_dt}->{"PASSED"}=$DATES{$passed_dt}->{"PASSED"} + 1;
+                            }
                         }
                     }
                 }
             }
-        }
-        if (exists($MVP_RPT{$mvp_key}->{"FLIST"})) {
-            print "  -F-" . $MVP_RPT{$mvp_key}->{"FLIST"} . "\n";
-            if ($MVP_RPT{$mvp_key}->{"FLIST"} ne "") {
-                my @FLIST = split(',',$MVP_RPT{$mvp_key}->{"FLIST"});
-                if (scalar(@FLIST) > 0) {
-                    for (my $fi=0;$fi<scalar(@FLIST);$fi++) {
-                        my %vals = %{$MASTER{$FLIST[$fi]}};
-                        my $failed_dt = $vals{"inspection_date"};
-                        if (!exists($DATES{$failed_dt}->{"FAILED"})) {$DATES{$failed_dt}->{"FAILED"}= 0;}
-                        if ($DATES{$failed_dt}->{"FAILED"} == 0) {
-                            $DATES{$failed_dt}->{"FAILED"}=1;
-                        } else {
-                            $DATES{$failed_dt}->{"FAILED"}=$DATES{$failed_dt}->{"FAILED"} + 1;
+            if (exists($MVP_RPT{$mvp_key}->{"FLIST"})) {
+                print "  -F-" . $MVP_RPT{$mvp_key}->{"FLIST"} . "\n" if $DEBUG > 1;
+                if ($MVP_RPT{$mvp_key}->{"FLIST"} ne "") {
+                    my @FLIST = split(',',$MVP_RPT{$mvp_key}->{"FLIST"});
+                    if (scalar(@FLIST) > 0) {
+                        for (my $fi=0;$fi<scalar(@FLIST);$fi++) {
+                            my %vals = %{$MASTER{$FLIST[$fi]}};
+                            my $failed_dt = $vals{"inspection_date"};
+                            if (!exists($DATES{$failed_dt}->{"FAILED"})) {$DATES{$failed_dt}->{"FAILED"}= 0;}
+                            if ($DATES{$failed_dt}->{"FAILED"} == 0) {
+                                $DATES{$failed_dt}->{"FAILED"}=1;
+                            } else {
+                                $DATES{$failed_dt}->{"FAILED"}=$DATES{$failed_dt}->{"FAILED"} + 1;
+                            }
                         }
                     }
                 }
             }
+            print FH "$ORG_REF{$mvp_key}\t${mvp_tot_v}\t${mvp_failed_v}\n";
         }
-        print FH "$ORG_REF{$mvp_key}\t${mvp_tot_v}\t${mvp_failed_v}\n";
+        printf "  %10s %-20s %7s %8s %10s\n","","","=======","========","==========";
+        my $pct = $failed_sum / $total_sum;
+        printf "  %10s %-20s %7s %8s %.8f\n","","",$total_sum,$failed_sum,$pct;
+        close(FH);
+        if (-f $mvpRpt) {
+            print "\n";
+            print "  --See: $mvpRpt\n\n";
+        }
     }
-    printf "  %10s %-20s %7s %8s %10s\n","","","=======","========","==========";
-    my $pct = $failed_sum / $total_sum;
-    printf "  %10s %-20s %7s %8s %.8f\n","","",$total_sum,$failed_sum,$pct;
-    close(FH);
+}
+sub report_DATES {
     if (scalar(keys %DATES) > 0) {
         my $ptotal=0;
         my $ftotal=0;
@@ -281,16 +303,12 @@ if (scalar(keys %MVP_RPT) > 0) {
         printf "  %-15s %4s %4s %8s\n","","----","----","--------";
         printf "  %-15s %0.4d %0.4d %0.6f\n","TOTALS",$ptotal,$ftotal,$pct_t;
     }
-    if (-f $mvpRpt) {
-        print "\n";
-        print "  --See: $mvpRpt\n\n";
-    }
 }
 sub selectSrcData {
     my $path = shift || "";
     my $fext = shift || "";
     my $filter = shift || "";
-    print "  selectSrcData($path,$fext,$filter)\n" if $DEBUG > 0;
+    print "  selectSrcData($path,$fext,$filter)\n" if $DEBUG > 7;
     if (! -d $path) {
         print "  ERROR: Invalid Path: $path\n";
         return;
@@ -315,7 +333,7 @@ sub selectSrcData {
         if ($filter ne "") {$cmd .= " | $grep ${filter}";}
         $cmd .= " | /usr/bin/sort -n";
     }
-    print "$cmd\n" if $DEBUG > 0;
+    print "$cmd\n" if $DEBUG > 7;
     my $cmdX=`$cmd`;
     chomp($cmdX);
     my @RALL=split('\n',$cmdX);
@@ -329,7 +347,7 @@ sub selectSrcData {
         my @RTN;
         for (my $rx=0;$rx<scalar(@R);$rx++) {
             my $rline = $R[$rx];
-            printf "  %0.12d %-s\n",$rx,$rline if $DEBUG > 0;
+            printf "  %0.12d %-s\n",$rx,$rline if $DEBUG > 7;
             my $file = $rline;
             $file =~ s/\:.*//g;
             push(@RTN,$file);
@@ -346,21 +364,21 @@ sub hashDATA {
     my @T = split('|',$data);
     for (my $ti=0;$ti<scalar(@T);$ti++) {
         my $tval = ord($T[$ti]);
-        printf "  %0.2d == %-s\n",$ti,$tval if $DEBUG > 1;
+        printf "  %0.2d == %-s\n",$ti,$tval if $DEBUG > 9;
     }
     my @H = split('\|',$head);
-    print "[", join(":", @H), "]\n" if $DEBUG > 1;
+    print "[", join(":", @H), "]\n" if $DEBUG > 9;
     my $hcnt = scalar(@H);
     my @D = split('\|',$data);
-    print "[" . join(":", @D), "]\n" if $DEBUG > 1;
+    print "[" . join(":", @D), "]\n" if $DEBUG > 9;
     my $dcnt = scalar(@D);
-    print "HEAD[${hcnt}]:$head\n" if $DEBUG > 1;
-    print "DATA[${dcnt}]:$data\n" if $DEBUG > 1;
+    print "HEAD[${hcnt}]:$head\n" if $DEBUG > 9;
+    print "DATA[${dcnt}]:$data\n" if $DEBUG > 9;
     my %HASH_DATA = map { $H[$_] => $D[$_] } (0..@H - 1 => 0..@D - 1);
     foreach my $key(sort keys %HASH_DATA) {
         if (!exists($HASH_DATA{$key})){$HASH_DATA{$key}="";}
         my $val = $HASH_DATA{$key};
-        printf "  %-45s == %-s\n",$key,$val if $DEBUG > 1;
+        printf "  %-45s == %-s\n",$key,$val if $DEBUG > 9;
     }
     $|=0;
     return %HASH_DATA;
@@ -381,7 +399,7 @@ sub splitData {
 }
 sub loadFile {
     my $file = shift || "";
-    print "$file\n" if $DEBUG > 0;
+    print "$file\n" if $DEBUG > 1;
     if (! -f $file) {
         $file = "${srcData}${SLASH}${file}";
         print "  --Trying file:$file\n";
@@ -391,20 +409,20 @@ sub loadFile {
         $/ = "\cA";
         my $data_slurp = do { local $/; <FH> };
         close(FH);
-        print "***START1***\n${data_slurp}\n***END1***\n" if $DEBUG > 1;
+        print "***START1***\n${data_slurp}\n***END1***\n" if $DEBUG > 5;
         $/ = "\n";
         if ($data_slurp =~ /<?xml[^>]+encoding[\s\x0d\x0a]*=[\s\x0d\x0a]*['"]utf-?8/i || $file =~ /<meta[^>]+chatset[\s\x0d\x0a]*=[\s\x0d\x0a]*utf-?8/i) {
             $data_slurp = decode('utf-8', $data_slurp);
         }
         $data_slurp =~ s/(.)/asciiize($1)/eg;
-        print "***START2***\n${data_slurp}\n***END2***\n" if $DEBUG > 1;
+        print "***START2***\n${data_slurp}\n***END2***\n" if $DEBUG > 5;
         my @RTN;
         if ($^O =~ /Win/) {
             @RTN=split('\n',$data_slurp);
         } else {
             @RTN= split('\r\n',$data_slurp);
         }
-        print "WTF:" . scalar(@RTN) . "\n";
+        print "  RTN_CNT:" . scalar(@RTN) . "\n" if $DEBUG > 9;
         return @RTN;
     } else {
         print "  Could not locate file: $file\n";
@@ -422,7 +440,7 @@ sub loadFile2 {
     my $col_key = shift || "";
     my $has_cmt = shift || "";
 
-    print "$file\n" if $DEBUG > 0;
+    print "$file\n" if $DEBUG > 3;
     if (-f $file) {
         undef $/;
         open(FH,"< $file")||die "Unable to open file: $file";
@@ -435,7 +453,7 @@ sub loadFile2 {
             my $line = $_;
             chomp($line);
             chop($line);
-            print "  Line1:'${line}'\n" if $DEBUG > 0;
+            print "  Line1:'${line}'\n" if $DEBUG > 5;
             if ($has_cmt ne "") {
                 if ($line =~ /${has_cmt}/) {
                     print "  has_cmt:${has_cmt}\n";
@@ -450,7 +468,7 @@ sub loadFile2 {
                 if (scalar(@H) > 0) {
                     for (my $hi=0;$hi<scalar(@H);$hi++) {
                         my $hcol = $H[$hi];
-                        printf "  HROW: %0.4d:%0.2d == %-s\n",$rowCnt,$hi,$hcol if $DEBUG > 0;
+                        printf "  HROW: %0.4d:%0.2d == %-s\n",$rowCnt,$hi,$hcol if $DEBUG > 2;
                         $HEADER{$hcol}=$hi;
                         $head=$line;
                     }
@@ -462,7 +480,7 @@ sub loadFile2 {
                 next;
             }
             $rowCnt++;
-            print "  Line2:$line\n" if $DEBUG > 0;
+            print "  Line2:$line\n" if $DEBUG > 5;
             my %ROW;
             print "----------------------------------------------------------------------------\n";
             for (my $rdi=0;$rdi<scalar(@ROW_DATA);$rdi++) {
@@ -472,7 +490,7 @@ sub loadFile2 {
                     printf "  -ERR: %0.4d:%0.2d == COL:%-30s\n",$rowCnt,$rdi,$col;
                     $val="nil";
                 }
-                printf "  DROW: %0.4d:%0.2d == COL:%-30s VAL:%-s\n",$rowCnt,$rdi,$col,$val if $DEBUG > 0;
+                printf "  DROW: %0.4d:%0.2d == COL:%-30s VAL:%-s\n",$rowCnt,$rdi,$col,$val if $DEBUG > 3;
                 $ROW{"${col}"}="${val}";
             }
             print "----------------------------------------------------------------------------\n";
@@ -490,15 +508,15 @@ sub loadFile2 {
                         }
                         printf "  -BUG: %0.4d:%0.2d COL:%-30s == %-50s %-s\n",$rowCnt,$hi,"'${rowkey}'","'${rowval}'",$chk;
                     }
-                    printf "  FILE: %0.4d:%0.2d %-s\n",$rowCnt,$hi,$file;
-                    printf "  HEAD: %0.4d:%0.2d %-s\n",$rowCnt,$hi,$head;
-                    printf "  LINE: %0.4d:%0.2d %-s\n",$rowCnt,$hi,$line;
+                    printf "  FILE: %0.4d:%0.2d %-s\n",$rowCnt,$hi,$file if $DEBUG > 3;
+                    printf "  HEAD: %0.4d:%0.2d %-s\n",$rowCnt,$hi,$head if $DEBUG > 3;
+                    printf "  LINE: %0.4d:%0.2d %-s\n",$rowCnt,$hi,$line if $DEBUG > 3;
                     &pullROWS($file,$rowCnt,$rowCnt);
-                    <STDIN> if $DEBUG > 0;
+                    <STDIN> if $DEBUG > 3;
                 }
-                printf "  FROW: %0.4d:%0.2d COL:%-30s == %-s\n",$rowCnt,$hi,$hcol,$hval;
+                printf "  FROW: %0.4d:%0.2d COL:%-30s == %-s\n",$rowCnt,$hi,$hcol,$hval if $DEBUG > 3;
             }
-            <STDIN> if $DEBUG > 9;
+            <STDIN> if $DEBUG > 2;
         }
         close(FH);
     } else {
@@ -530,11 +548,11 @@ sub fromARRAY {
     my @ARRAY = @_;
     my @RETURN;
     my $ans="";
-    if ($MODE ne "NO-PROMPT") {
+    if (uc($MODE) =~ /MENU/) {
          for (my $i=0;$i<=scalar(@ARRAY)-1 ;$i++) {
              my $c = $i+1;
              print "\t$c $ARRAY[$i]\n";
-     }
+        }
          print "\n\tEnter Choice (x~exit| s~skip | n~new) 1,2,ect | 1-5,8-19 | a for all] [a]:";
          $ans = <STDIN>;
          chomp($ans);
