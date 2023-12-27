@@ -1,4 +1,4 @@
-# [Business Requirements](/requirements.md)
+# [Business Requirements](/Requirements.md)
 
 ## _Tools Required_:
 - [x] **Download and Install _git_** \
