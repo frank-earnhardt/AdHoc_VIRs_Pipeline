@@ -27,4 +27,7 @@ Setp 6: `docker run -it -v <containerPath>/src_data:/opt/src_data:/opt/src_data 
 
 ---
 ## Examples:
-
+_Tool Help Options:_
+![Tool Help](/img/help_screen.png)
+_Default Run with provided files located in `src_data` folder:_
+![Default Run](/img/default_run.png)
