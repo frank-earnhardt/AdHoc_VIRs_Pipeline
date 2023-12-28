@@ -55,7 +55,7 @@ vehicle_id|inspection_date|vehicle_org_id|org_name|inspection_period_id|inspecti
 4021|2020-02-10|1920|Economotor|102|TRUE <br>
 _Not all columns are needed._ <br>
 
-_To extract the dumps from vehicle_inspection_reports.tar.gz you can run tar zxvf vehicle_inspection_reports.tar.gz in most any Unix-like command line._ <br>
+_To extract the dumps from vehicle_inspection_reports.tar.gz you can run tar -zxvf vehicle_inspection_reports.tar.gz in most any Unix-like command line._ <br>
 
 Included files <br>
 Here are the files we'll give to you to get you started. Download them when you are ready to begin. <br>
