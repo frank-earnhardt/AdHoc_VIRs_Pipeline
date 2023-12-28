@@ -36,7 +36,7 @@ Until a new inspection result is indicated, the previous inspection result conti
 There can be long delays between when an inspection is conducted, and when a result is updated to passing or failing, so each successive dump is likely to update a few inspection records received in previous dumps. <br>
 In a given inspection record, only inspection_passed is ever updated, so changes to vehicles or organizations can only be inferred from subsequent inspection records. <br><br>
 
-_You must supply your code as part of your answer_. <bt>
+_You must supply your code as part of your answer_. <br>
 Use whichever data stores and languages with which you're most comfortable, including domain-specific languages such as SQL. <br>
 The prime focus of this homework is the data logic and structures. <br>
 The secondary focus is ingestion and export of data from the data store. <br>
